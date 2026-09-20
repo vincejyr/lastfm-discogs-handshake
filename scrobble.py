@@ -40,7 +40,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        discogs_user = core.connect_discogs()
+        _, discogs_user = core.connect_discogs()
         lastfm_network = None if args.dry_run else core.connect_lastfm()
     except core.ConfigError as e:
         print(str(e), file=sys.stderr)

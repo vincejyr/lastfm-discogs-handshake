@@ -1,5 +1,6 @@
 """Shared Discogs <-> Last.fm logic used by both scrobble.py (CLI) and
 app.py (local web GUI)."""
+import itertools
 import os
 import time
 
@@ -33,12 +34,14 @@ def parse_duration(duration_str):
 
 
 def connect_discogs():
+    """Returns (client, user) -- the raw API client is needed for
+    full-database search, the User for collection access."""
     token = os.environ.get("DISCOGS_TOKEN")
     username = os.environ.get("DISCOGS_USERNAME")
     if not token or not username:
         raise ConfigError("Set DISCOGS_TOKEN and DISCOGS_USERNAME in .env first.")
-    d = discogs_client.Client("lastfm-discogs-handshake/1.0", user_token=token)
-    return d.user(username)
+    client = discogs_client.Client("lastfm-discogs-handshake/1.0", user_token=token)
+    return client, client.user(username)
 
 
 def connect_lastfm():
@@ -106,6 +109,37 @@ def search_collection(items, query):
         return items
     q = query.lower()
     return [i for i in items if q in i["artist"].lower() or q in i["title"].lower()]
+
+
+def search_discogs(client, query, limit=50):
+    """Searches the full Discogs database (not just your collection).
+    Search results only carry a combined "Artist - Title" string rather
+    than the structured artist list collection items have, so split it
+    heuristically."""
+    if not query:
+        return []
+    results = client.search(query, type="release")
+    try:
+        matches = results[:limit]
+    except TypeError:
+        matches = itertools.islice(results, limit)
+
+    items = []
+    for r in matches:
+        raw_title = r.data.get("title") or ""
+        if " - " in raw_title:
+            artist, title = raw_title.split(" - ", 1)
+        else:
+            artist, title = "Unknown Artist", raw_title
+        items.append({
+            "id": r.id,
+            "artist": artist,
+            "title": title,
+            "year": r.data.get("year"),
+            "thumb": r.data.get("thumb") or "",
+            "release": r,
+        })
+    return items
 
 
 def build_tracks(release):

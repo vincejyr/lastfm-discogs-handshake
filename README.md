@@ -52,8 +52,9 @@ instead of using the terminal at all (first time you run it, macOS may
 warn it's from an unidentified developer — right-click it and choose
 **Open** to allow it once).
 
-Either way, it opens `http://127.0.0.1:5000` in your browser
-automatically. If you haven't connected to Last.fm yet, a banner at the
+Either way, it opens `http://127.0.0.1:5050` in your browser
+automatically (override with `PORT=...` if 5050 is also taken). If you
+haven't connected to Last.fm yet, a banner at the
 top offers a **Connect to Last.fm** button — click it, approve access on
 the Last.fm page that opens, then come back and click the button again
 to finish (this only needs to happen once; it saves a session key to

@@ -59,6 +59,50 @@ h1 {
   font-size: 1rem;
 }
 
+.search-scope {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.scope-btn {
+  padding: 10px 14px;
+  border: none;
+  background: var(--card-bg);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scope-btn + .scope-btn {
+  border-left: 1px solid var(--border);
+}
+
+.scope-btn.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.refresh-btn {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .lastfm-banner {
   display: flex;
   flex-wrap: wrap;

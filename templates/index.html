@@ -10,6 +10,11 @@
   <header>
     <h1>Discogs &rarr; Last.fm Scrobbler</h1>
     <input id="search" type="text" placeholder="Search your collection (artist or album)&hellip;" autofocus>
+    <div class="search-scope" role="group" aria-label="Search scope">
+      <button type="button" id="scope-collection" class="scope-btn active">My collection</button>
+      <button type="button" id="scope-discogs" class="scope-btn">All of Discogs</button>
+    </div>
+    <button type="button" id="refresh-btn" class="refresh-btn" title="Reload your Discogs collection">&#8635; Refresh</button>
   </header>
 
   <div id="lastfm-banner" class="lastfm-banner hidden">

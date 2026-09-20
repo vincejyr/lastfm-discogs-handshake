@@ -4,8 +4,9 @@ Last.fm. Runs entirely on your own machine -- nothing is hosted publicly.
 
 Usage:
   python3 app.py
-  then open http://127.0.0.1:5000 in your browser (opens automatically)
+  then open http://127.0.0.1:5050 in your browser (opens automatically)
 """
+import os
 import sys
 import threading
 import webbrowser
@@ -16,10 +17,22 @@ import core
 
 app = Flask(__name__)
 
+# 5000 is macOS's AirPlay Receiver port -- if it's enabled it'll grab the
+# port before this app can bind it. Default somewhere else to sidestep
+# that entirely; override with PORT= if 5050 is also taken.
+PORT = int(os.environ.get("PORT", 5050))
+
 # Populated once at startup; a personal single-user local tool doesn't need
 # per-request reloading or multi-user cache invalidation.
 _collection = []
+_discogs_client = None
 _discogs_user = None
+
+# Every release we know about, keyed by id -- collection items loaded at
+# startup, plus anything turned up by a general Discogs search. This is
+# what /api/release and /api/scrobble look items up in, so a search result
+# doesn't need to be in your collection to view its tracklist or scrobble it.
+_release_cache = {}
 
 # Holds the in-progress Last.fm web-auth handshake between the
 # start-auth and complete-auth calls below.
@@ -27,10 +40,7 @@ _lastfm_auth_pending = {}
 
 
 def _find_by_id(release_id):
-    for item in _collection:
-        if item["id"] == release_id:
-            return item
-    return None
+    return _release_cache.get(release_id)
 
 
 @app.route("/")
@@ -79,6 +89,44 @@ def api_collection():
     ])
 
 
+@app.route("/api/collection/refresh", methods=["POST"])
+def api_collection_refresh():
+    global _collection
+    try:
+        _collection = core.load_collection(_discogs_user)
+    except Exception as e:
+        return jsonify({"error": f"Couldn't refresh your collection: {e}"}), 502
+    for item in _collection:
+        _release_cache[item["id"]] = item
+    return jsonify({"count": len(_collection)})
+
+
+@app.route("/api/search")
+def api_search():
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify([])
+
+    try:
+        found = core.search_discogs(_discogs_client, query)
+    except Exception as e:
+        return jsonify({"error": f"Discogs search failed: {e}"}), 502
+
+    results = []
+    for item in found:
+        # Keep the collection's copy if we already have one -- it has a
+        # properly split artist name instead of search's parsed guess.
+        cached = _release_cache.setdefault(item["id"], item)
+        results.append({
+            "id": cached["id"],
+            "artist": cached["artist"],
+            "title": cached["title"],
+            "year": cached["year"],
+            "thumb": cached["thumb"],
+        })
+    return jsonify(results)
+
+
 @app.route("/api/release/<int:release_id>")
 def api_release(release_id):
     item = _find_by_id(release_id)
@@ -120,23 +168,25 @@ def api_scrobble():
 
 
 def main():
-    global _collection, _discogs_user
+    global _collection, _discogs_client, _discogs_user
 
     try:
-        _discogs_user = core.connect_discogs()
+        _discogs_client, _discogs_user = core.connect_discogs()
     except core.ConfigError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
     print("Loading your Discogs collection (this can take a moment for large collections)...")
     _collection = core.load_collection(_discogs_user)
+    for item in _collection:
+        _release_cache[item["id"]] = item
     print(f"Loaded {len(_collection)} releases.")
 
-    url = "http://127.0.0.1:5000"
+    url = f"http://127.0.0.1:{PORT}"
     print(f"\nStarting local server at {url} (opening in your browser)...")
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=PORT, debug=False)
 
 
 if __name__ == "__main__":

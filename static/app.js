@@ -1,8 +1,13 @@
 let collection = [];
+let searchScope = "collection"; // "collection" | "discogs"
+let searchDebounceTimer = null;
 
 const grid = document.getElementById("grid");
 const status = document.getElementById("status");
 const search = document.getElementById("search");
+const scopeCollectionBtn = document.getElementById("scope-collection");
+const scopeDiscogsBtn = document.getElementById("scope-discogs");
+const refreshBtn = document.getElementById("refresh-btn");
 const modalBackdrop = document.getElementById("modal-backdrop");
 const modalTitle = document.getElementById("modal-title");
 const modalTracklist = document.getElementById("modal-tracklist");
@@ -107,7 +112,75 @@ function filterAndRender() {
 async function loadCollection() {
   const res = await fetch("/api/collection");
   collection = await res.json();
-  filterAndRender();
+  if (searchScope === "collection") {
+    filterAndRender();
+  }
+}
+
+async function refreshCollection() {
+  refreshBtn.disabled = true;
+  const previousStatus = status.textContent;
+  status.textContent = "Refreshing your collection from Discogs…";
+  try {
+    const res = await fetch("/api/collection/refresh", { method: "POST" });
+    const data = await res.json();
+    if (data.error) {
+      status.textContent = data.error;
+      return;
+    }
+    await loadCollection();
+    if (searchScope !== "collection") {
+      status.textContent = `Collection refreshed (${collection.length} releases) — ${previousStatus}`;
+    }
+  } catch (err) {
+    status.textContent = `Refresh failed: ${err}`;
+  } finally {
+    refreshBtn.disabled = false;
+  }
+}
+
+async function searchDiscogs(query) {
+  status.textContent = "Searching Discogs…";
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (data.error) {
+      status.textContent = data.error;
+      renderGrid([]);
+      return;
+    }
+    renderGrid(data);
+    status.textContent = `${data.length} results from Discogs`;
+  } catch (err) {
+    status.textContent = `Search failed: ${err}`;
+  }
+}
+
+function handleSearchInput() {
+  if (searchScope === "collection") {
+    filterAndRender();
+    return;
+  }
+
+  clearTimeout(searchDebounceTimer);
+  const query = search.value.trim();
+  if (query.length < 2) {
+    renderGrid([]);
+    status.textContent = "Type at least 2 characters to search Discogs.";
+    return;
+  }
+  status.textContent = "Searching Discogs…";
+  searchDebounceTimer = setTimeout(() => searchDiscogs(query), 400);
+}
+
+function setSearchScope(scope) {
+  searchScope = scope;
+  scopeCollectionBtn.classList.toggle("active", scope === "collection");
+  scopeDiscogsBtn.classList.toggle("active", scope === "discogs");
+  search.placeholder = scope === "collection"
+    ? "Search your collection (artist or album)…"
+    : "Search all of Discogs (artist or album)…";
+  handleSearchInput();
 }
 
 async function openModal(releaseId) {
@@ -172,7 +245,10 @@ async function submitScrobble() {
   }
 }
 
-search.addEventListener("input", filterAndRender);
+search.addEventListener("input", handleSearchInput);
+scopeCollectionBtn.addEventListener("click", () => setSearchScope("collection"));
+scopeDiscogsBtn.addEventListener("click", () => setSearchScope("discogs"));
+refreshBtn.addEventListener("click", refreshCollection);
 scrobbleBtn.addEventListener("click", submitScrobble);
 modalClose.addEventListener("click", () => modalBackdrop.classList.add("hidden"));
 modalBackdrop.addEventListener("click", (e) => {
