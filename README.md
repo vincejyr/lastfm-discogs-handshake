@@ -1,17 +1,21 @@
 # LastFM ↔ Discogs handshake
 
-Scrobble an album from your Discogs collection to Last.fm. Two
-interfaces, same underlying logic (`core.py`):
+Scrobble an album to Last.fm, from your Discogs collection or from
+Discogs' full database. Two interfaces, same underlying logic
+(`core.py`):
 
 - **`app.py`** — a local browser-based GUI: searchable album grid with
-  cover art, click an album to see its tracklist, one button to scrobble
-- **`scrobble.py`** — a terminal-only CLI, if you prefer that
+  cover art, a toggle to search your collection or all of Discogs,
+  click an album to see its tracklist, one button to scrobble
+- **`scrobble.py`** — a terminal-only CLI, collection-only, if you
+  prefer that
 
 Both run entirely on your own machine. Nothing is hosted publicly.
 
 ## How it works
 
-1. Fetches your Discogs collection (the "All" folder) via the Discogs API
+1. Fetches your Discogs collection (the "All" folder) via the Discogs
+   API; the GUI can also search the full Discogs database on demand
 2. You search/pick a release
 3. Fetches that release's full tracklist from Discogs (lazy-loaded on
    demand, not for your whole collection up front)
@@ -62,6 +66,12 @@ to finish (this only needs to happen once; it saves a session key to
 
 Then search or browse the grid, click an album to see its tracklist,
 tick/untick "Dry run" and click **Scrobble to Last.fm**.
+
+Use the **My collection / All of Discogs** toggle above the search box
+to switch between filtering your own collection and searching the full
+Discogs database — the latter works for any release, not just ones you
+own. If you've added something to your Discogs collection since the app
+started, click **Refresh** to re-fetch it without restarting.
 
 ### CLI
 
